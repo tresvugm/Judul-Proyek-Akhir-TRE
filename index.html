@@ -44,7 +44,7 @@
             border-bottom: none;
         }
         .judul-kolom {
-            min-width: 300px; /* Agar kolom judul TA cukup lebar */
+            min-width: 300px;
         }
     </style>
 </head>
@@ -95,6 +95,7 @@
                 <table id="tabelJudulPA" class="table table-striped table-hover align-middle w-100">
                     <thead>
                         <tr>
+                            <th class="text-center" width="5%">No.</th>
                             <th>NIM</th>
                             <th>Nama</th>
                             <th>Angkatan</th>
@@ -121,31 +122,31 @@
 
     <script>
         // ==========================================
-        // 1. MASUKKAN ID SPREADSHEET ANDA DI SINI!
+        // 1. MASUKKAN ID SPREADSHEET ANDA DI SINI
         // ==========================================
         const SPREADSHEET_ID = '1SMoRbwnRhiDWBy0a1EC2TbgPCLS8piFR'; 
-        
-        // Google Sheets export URL format (Otomatis mengubah Sheet menjadi CSV)
         const URL_GOOGLE_SHEETS = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv`;
 
-        // ==========================================
-        // 2. FUNGSI MENGAMBIL DATA & MEMBANGUN TABEL
-        // ==========================================
         Papa.parse(URL_GOOGLE_SHEETS, {
             download: true,
-            header: true, // Membaca baris pertama sebagai nama kolom
+            header: true,
             complete: function(results) {
                 const data = results.data;
                 const tbody = document.getElementById('isiTabel');
                 
-                // Looping setiap baris data dari Excel
+                let nomorUrutOtomatis = 1; // Cadangan jika kolom 'No' tidak ada
+                
                 data.forEach(row => {
-                    // Mencegah baris kosong (blank row) terbaca
                     if(!row['NIM'] || !row['Nama']) return; 
+
+                    // MENGATASI NAMA MENJOROK: Menghapus spasi biasa maupun spasi tersembunyi di awal/akhir nama
+                    let namaBersih = row['Nama'].replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '').trim();
+                    
+                    // Mengambil nomor dari kolom 'No' di CSV, jika kosong gunakan nomorUrutOtomatis
+                    let nomorTampil = row['No'] || nomorUrutOtomatis++;
 
                     const tr = document.createElement('tr');
                     
-                    // Menentukan isi tombol berdasarkan ketersediaan Link ETD
                     let tombolEtd = '';
                     let linkRaw = row['Link ETD'] ? row['Link ETD'].trim() : '';
                     
@@ -155,10 +156,11 @@
                         tombolEtd = `<span class="badge bg-secondary">Belum Tersedia</span>`;
                     }
 
-                    // Menyusun sel tabel
+                    // Susunan sel dengan tambahan <td> untuk Nomor
                     tr.innerHTML = `
+                        <td class="text-center fw-semibold text-muted">${nomorTampil}</td>
                         <td>${row['NIM']}</td>
-                        <td>${row['Nama']}</td>
+                        <td>${namaBersih}</td>
                         <td>${row['Angkatan']}</td>
                         <td class="fw-semibold text-dark">${row['Judul TA Indonesia']}</td>
                         <td>${tombolEtd}</td>
@@ -166,24 +168,26 @@
                     tbody.appendChild(tr);
                 });
 
-                // Menyembunyikan ikon loading dan menampilkan tabel
                 document.getElementById('loadingIndicator').style.display = 'none';
                 document.getElementById('tableContainer').style.display = 'block';
 
-                // Mengaktifkan fitur DataTables (Search & Pagination)
                 $('#tabelJudulPA').DataTable({
                     language: {
-                        url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json', // Menggunakan bahasa Indonesia
+                        url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json',
                     },
-                    pageLength: 15, // Jumlah data per halaman
-                    order: [[2, 'desc']] // Urutkan otomatis berdasarkan kolom Angkatan (terbaru ke terlama)
+                    pageLength: 15,
+                    // Karena ada tambahan kolom di awal, Angkatan sekarang berada di index 3
+                    order: [[3, 'desc']], 
+                    columnDefs: [
+                        { targets: 0, className: 'text-center' } // Format tengah untuk kolom Nomor
+                    ]
                 });
             },
             error: function(error) {
                 console.error("Gagal mengambil data dari Google Sheets:", error);
                 document.getElementById('loadingIndicator').innerHTML = `
                     <div class="alert alert-danger" role="alert">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i> Gagal memuat data dari database. Pastikan link Google Sheets sudah disetel Publik (Siapa saja yang memiliki link).
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> Gagal memuat data dari database. Pastikan link Google Sheets sudah disetel Publik.
                     </div>
                 `;
             }
