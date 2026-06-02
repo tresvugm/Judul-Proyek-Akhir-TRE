@@ -37,7 +37,6 @@
         }
         .btn-kembali:hover { text-decoration: underline; }
         
-        /* Modifikasi tampilan tabel */
         table.dataTable thead th {
             background-color: #1e3a8a;
             color: white;
@@ -100,7 +99,7 @@
                             <th>Nama</th>
                             <th>Angkatan</th>
                             <th class="judul-kolom">Judul Tugas Akhir</th>
-                            <th>Aksi</th>
+                            <th>Link</th>
                         </tr>
                     </thead>
                     <tbody id="isiTabel">
@@ -134,16 +133,10 @@
                 const data = results.data;
                 const tbody = document.getElementById('isiTabel');
                 
-                let nomorUrutOtomatis = 1; // Cadangan jika kolom 'No' tidak ada
-                
                 data.forEach(row => {
                     if(!row['NIM'] || !row['Nama']) return; 
 
-                    // MENGATASI NAMA MENJOROK: Menghapus spasi biasa maupun spasi tersembunyi di awal/akhir nama
                     let namaBersih = row['Nama'].replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '').trim();
-                    
-                    // Mengambil nomor dari kolom 'No' di CSV, jika kosong gunakan nomorUrutOtomatis
-                    let nomorTampil = row['No'] || nomorUrutOtomatis++;
 
                     const tr = document.createElement('tr');
                     
@@ -156,9 +149,9 @@
                         tombolEtd = `<span class="badge bg-secondary">Belum Tersedia</span>`;
                     }
 
-                    // Susunan sel dengan tambahan <td> untuk Nomor
+                    // Biarkan sel nomor pertama kosong (""), DataTables akan mengisinya otomatis nanti
                     tr.innerHTML = `
-                        <td class="text-center fw-semibold text-muted">${nomorTampil}</td>
+                        <td></td>
                         <td>${row['NIM']}</td>
                         <td>${namaBersih}</td>
                         <td>${row['Angkatan']}</td>
@@ -171,17 +164,32 @@
                 document.getElementById('loadingIndicator').style.display = 'none';
                 document.getElementById('tableContainer').style.display = 'block';
 
-                $('#tabelJudulPA').DataTable({
+                // ==========================================
+                // INISIALISASI DATATABLES DENGAN AUTO-NUMBERING
+                // ==========================================
+                var table = $('#tabelJudulPA').DataTable({
                     language: {
                         url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json',
                     },
                     pageLength: 15,
-                    // Karena ada tambahan kolom di awal, Angkatan sekarang berada di index 3
-                    order: [[3, 'desc']], 
+                    order: [[3, 'desc']], // Urutkan default berdasarkan Angkatan
                     columnDefs: [
-                        { targets: 0, className: 'text-center' } // Format tengah untuk kolom Nomor
+                        {
+                            targets: 0, // Kolom index 0 (No.)
+                            searchable: false, // Tidak perlu dicari
+                            orderable: false, // Mematikan fitur klik sorting pada kolom nomor
+                            className: 'text-center fw-semibold text-muted'
+                        }
                     ]
                 });
+
+                // Trigger untuk menyusun ulang nomor urut setiap kali tabel di-sort atau di-filter
+                table.on('order.dt search.dt', function () {
+                    let i = 1;
+                    table.cells(null, 0, { search: 'applied', order: 'applied' }).every(function (cell) {
+                        this.data(i++);
+                    });
+                }).draw();
             },
             error: function(error) {
                 console.error("Gagal mengambil data dari Google Sheets:", error);
